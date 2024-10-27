@@ -27,7 +27,7 @@ or
 Install using your favorite package manager, or use the built-in package support
 
 ```bash
-$ mkdir -p $HOME/.config/nvim/pack/vendor/start
-$ cd $HOME/.config/nvim/pack/vendor/start
-$ git clone https://github.com/Async10/nvim-keepcase
+mkdir -p $HOME/.config/nvim/pack/vendor/start
+cd $HOME/.config/nvim/pack/vendor/start
+git clone https://github.com/Async10/nvim-keepcase
 ```
