@@ -6,7 +6,9 @@ Simple search and replace while preserving the original case
   <img src="./keepcase.gif">
 </div>
 
-The plugin provides the user command `:Replace` which acts as a drop-in replacement for the builtin `:substitute`.
+## Features
+
+The plugin provides the user command `:Replace` which acts as a drop-in replacement for the builtin `:substitute` command.
 
 ## Usage
 
