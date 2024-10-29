@@ -39,7 +39,7 @@ end
 
 local SUBSTITUTE_CMD_FLAGS = "&cegiInp#lr"
 local parse_args = function(args)
-    local pat, sub, flags;
+    local pat, sub, flags, count;
 
     local delim = args:sub(1, 1)
     if delim then
@@ -48,18 +48,18 @@ local parse_args = function(args)
             sub = args:match(
                 string.format("%s[^%s]*%s([^%s]*)", delim, delim, delim, delim))
             if sub then
-                flags = args:match(string.format("%s([%s]*)$", delim, SUBSTITUTE_CMD_FLAGS))
+                flags, count = args:match(string.format("%s([%s]*)%%s*(%%d*)$", delim, SUBSTITUTE_CMD_FLAGS))
             end
         end
     end
 
-    return delim, pat, sub, flags
+    return delim, pat, sub, flags, count
 end
 
 local NO_PREVIEW = 0
 local PREVIEW_AND_PREVIEW_WINDOW = 2
 local replace = function(opts)
-    local delim, pat, sub, flags = parse_args(opts.args)
+    local delim, pat, sub, flags, count = parse_args(opts.args)
 
     if not pat or not sub then
         vim.notify("Nothing to replace")
@@ -67,11 +67,15 @@ local replace = function(opts)
     end
 
     sub = string.format("\\=luaeval('keep_case(_A[1], _A[2])', [submatch(0), '%s'])", sub)
-    vim.cmd(string.format("%d,%ds/%s/%s/%s", opts.line1, opts.line2, pat, sub, flags or ""))
+
+    local substitute_cmd = string.format(
+        "%d,%ds/%s/%s/%s %s",
+        opts.line1, opts.line2, pat, sub, flags or "", count or "")
+    vim.cmd(vim.trim(substitute_cmd))
 end
 
 local replace_preview = function(opts, preview_ns, preview_buf)
-    local _, pat, sub, _ = parse_args(opts.args)
+    local _, pat, sub, _, _ = parse_args(opts.args)
     if not pat then
         return NO_PREVIEW    --  without a pattern, we can't do anything
     end
