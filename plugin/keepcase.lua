@@ -37,6 +37,35 @@ function keep_case(original_word, new_word)
     return res
 end
 
+-- Replace characters with special meaning in substitute string.
+-- @param sub The substitute string
+-- @param sub The submatch function (optional)
+-- @return The adapted substitute string
+function sub_replace(sub, submatch)
+    assert(type(sub) == "string", "sub has to be a string")
+
+    submatch = submatch or vim.fn.submatch
+    local str_buf = {}
+    local idx = 1
+    while idx <= string.len(sub) do
+        if string.byte(sub, idx) == string.byte("\\") then
+            local group_idx = string.byte(sub, idx+1) - string.byte("0")
+            if 0 <= group_idx and group_idx <= 9 then
+                table.insert(str_buf, table.getn(str_buf)+1, submatch(group_idx))
+                idx = idx + 2
+                goto continue
+            end
+        end
+
+        table.insert(str_buf, table.getn(str_buf)+1, string.sub(sub, idx, idx))
+        idx = idx + 1
+
+        ::continue::
+    end
+
+    return table.concat(str_buf, "")
+end
+
 local SUBSTITUTE_CMD_FLAGS = "&cegiInp#lr"
 local parse_args = function(args)
     local pat, sub, flags, count;
@@ -66,8 +95,7 @@ local replace = function(opts)
         return
     end
 
-    sub = string.format("\\=luaeval('keep_case(_A[1], _A[2])', [submatch(0), '%s'])", sub)
-
+    sub = string.format("\\=luaeval('keep_case(_A[1], sub_replace(_A[2]))', [submatch(0), '%s'])", sub)
     local substitute_cmd = string.format(
         "%d,%ds/%s/%s/%s %s",
         opts.line1, opts.line2, pat, sub, flags or "", count or "")
@@ -90,8 +118,19 @@ local replace_preview = function(opts, preview_ns, preview_buf)
     local preview_buf_line = 0
     local hl_group = "Substitute"
     for i, line in ipairs(lines) do
-        local match, col_start, col_end = unpack(vim.fn.matchstrpos(line, pat))
-        if match ~= "" and col_start ~= -1 and col_end ~= -1 then   -- we found a match
+        local match_result = vim.fn.matchstrlist({ line }, pat, { submatches = true })[1]
+        if match_result then    -- we found a match
+            local match = match_result.text
+            local col_start = match_result.byteidx
+            local col_end = col_start + string.len(match)
+            local submatch = function(idx)
+                if idx == 0 then
+                    return match
+                else
+                    return match_result.submatches[idx]
+                end
+            end
+
             -- highlight match in current buffer
             vim.api.nvim_buf_add_highlight(
                 buf,
@@ -104,7 +143,9 @@ local replace_preview = function(opts, preview_ns, preview_buf)
 
             if preview_buf then
                 -- replace match with substitute string, if it was provided
-                match = sub and keep_case(match, sub) or match
+                if sub then
+                    match = keep_case(match, sub_replace(sub, submatch))
+                end
 
                 -- update and set line
                 line = line:sub(1, col_start) .. match .. line:sub(col_end + 1)
